@@ -1,7 +1,7 @@
 package dev.streamshield.nativeapi;
 
 import com.sun.jna.Native;
-import com.sun.jna.platform.WindowUtils;
+import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.win32.StdCallLibrary;
 import com.sun.jna.win32.W32APIOptions;
@@ -18,7 +18,8 @@ public final class WindowsCaptureGuard {
     public static Result enable(JFrame frame) {
         if (!isWindows()) return new Result(false, false, "Capture exclusion is Windows-only");
         try {
-            HWND hwnd = WindowUtils.getHWND(frame);
+            Pointer pointer = Native.getComponentPointer(frame);
+            HWND hwnd = new HWND(pointer);
             if (User32Ex.INSTANCE.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)) {
                 return new Result(true, true, "WDA_EXCLUDEFROMCAPTURE active");
             }
