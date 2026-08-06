@@ -28,7 +28,9 @@ jobs:
       - name: Extract source
         shell: pwsh
         run: |
-          Expand-Archive -Path source.zip -DestinationPath work -Force
+          New-Item -ItemType Directory -Path work -Force | Out-Null
+          tar -xf source.zip -C work
+          if ($LASTEXITCODE -ne 0) { throw "tar extraction failed with code $LASTEXITCODE" }
           Get-ChildItem -Recurse work | Select-Object FullName
 
       - name: Add bundled Windows Chromium runtime
