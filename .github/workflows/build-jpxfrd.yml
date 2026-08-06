@@ -25,52 +25,28 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Extract source
+      - name: Build executable JAR with bundled Chromium
         shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path work -Force | Out-Null
-          tar -xf source.zip -C work
-          if ($LASTEXITCODE -ne 0) { throw "tar extraction failed with code $LASTEXITCODE" }
-          Get-ChildItem -Recurse work | Select-Object FullName
-
-      - name: Add bundled Windows Chromium runtime
-        shell: pwsh
-        working-directory: work/jpxfrd-chromium-source
-        run: |
-          $pom = Get-Content pom.xml -Raw
-          $native = @'
-            <dependency>
-              <groupId>me.friwi</groupId>
-              <artifactId>jcef-natives-windows-amd64</artifactId>
-              <version>jcef-d3de827+cef-146.0.10+g8219561+chromium-146.0.7680.179</version>
-              <scope>runtime</scope>
-            </dependency>
-          '@
-          $pom = $pom.Replace('  </dependencies>', "$native`r`n  </dependencies>")
-          Set-Content pom.xml $pom -Encoding UTF8
-          Get-Content pom.xml
-
-      - name: Build executable JAR
-        shell: pwsh
-        working-directory: work/jpxfrd-chromium-source
+        working-directory: app
         run: mvn -B -U clean package
 
       - name: Verify native runtime is embedded
         shell: pwsh
-        working-directory: work/jpxfrd-chromium-source
+        working-directory: app
         run: |
           $jar = 'target/jpxfrd-chromium.jar'
           if (!(Test-Path $jar)) { throw 'JAR was not produced' }
           $size = (Get-Item $jar).Length
           if ($size -lt 100MB) { throw "JAR is unexpectedly small: $size bytes" }
-          jar tf $jar | Select-String 'jcef-natives-windows-amd64.*\.tar\.gz' | Tee-Object -Variable matches
+          $matches = jar tf $jar | Select-String 'jcef-natives-windows-amd64.*\.tar\.gz'
           if (!$matches) { throw 'Embedded Windows JCEF native archive not found' }
+          $matches
           Write-Host "Verified self-contained JAR: $size bytes"
 
       - name: Upload self-contained JAR
         uses: actions/upload-artifact@v4
         with:
           name: jpxfrd-chromium-selfcontained-windows-x64
-          path: work/jpxfrd-chromium-source/target/jpxfrd-chromium.jar
+          path: app/target/jpxfrd-chromium.jar
           if-no-files-found: error
           compression-level: 0
